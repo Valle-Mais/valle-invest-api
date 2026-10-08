@@ -20,11 +20,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node -r tsconfig-paths/register src/seed.ts",
     "db:backfill": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=backfill",
-      "cleanup:clients": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=cleanup",
-        "validate:performance": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=validate",
- "delete:fluxos": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=deleteFluxos"
-
-
+    "cleanup:clients": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=cleanup",
+    "validate:performance": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=validate",
+    "delete:fluxos": "ts-node -r tsconfig-paths/register src/seed.ts -- --task=deleteFluxos"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
