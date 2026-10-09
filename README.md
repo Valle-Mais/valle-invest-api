@@ -1,101 +1,51 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>nn
+# valle-invest-api
 
+API da plataforma Valle Consultoria. NestJS 10 + Firestore, hospedada na Vercel.
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: nnhttps://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Descriptionnn
-nn
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Rodar localmente
 
 ```bash
-$ npm install nnn
+npm install
+cp .env.example .env   # preencha as variáveis
+npm run start:dev      # http://localhost:3000
 ```
-  
-## Compile and run the project
+
+A API não sobe sem `JWT_SECRET`, `FIREBASE_CREDENTIALS_BASE64` e `RESEND_API_KEY`. A validação acontece no boot, em `src/config/env.validation.ts`.
+
+## Variáveis de ambiente
+
+| Variável | Obrigatória | Uso |
+|---|---|---|
+| `FIREBASE_CREDENTIALS_BASE64` | sim | JSON da service account em base64: `base64 -i service-account.json \| tr -d '\n'` |
+| `JWT_SECRET` | sim | Segredo do JWT, mínimo 32 caracteres: `openssl rand -base64 48` |
+| `RESEND_API_KEY` | sim | Chave do Resend para envio de email |
+| `MAIL_FROM` | não | Remetente dos emails, de um domínio verificado no Resend. Default `onboarding@resend.dev`, que só entrega para a conta Resend |
+| `FRONTEND_URL` | não | URL do front usada nos links de email. Default `http://localhost:4200` |
+| `FRONTEND_URLS` | não | Origens permitidas no CORS, separadas por vírgula. Default `http://localhost:4200` |
+| `PORT` | não | Default `3000` |
+
+## Autenticação e autorização
+
+- Toda rota exige `Authorization: Bearer <jwt>`. O guard é global (`JwtAuthGuard` em `app.module.ts`); rotas públicas levam `@Public()`. Hoje são: `GET /`, `POST /auth/request-link`, `POST /auth/verify-token`.
+- Papéis: `admin` e `client`. Rotas marcadas com `@Roles('admin')` recusam cliente com 403.
+- Cliente só acessa os próprios dados em `GET /clients/:id`, `GET /performance/:clientId`, `GET /client-transactions` e `GET /client-transactions/:id` (`assertOwnership` em `src/auth/ownership.ts`). Em `POST /client-transactions/request`, o `clientId` vem do token, não do body.
+- Não existe registro público. Usuários são criados por um admin em `POST /clients`.
+- `/auth/*` tem rate limit de 5 requisições por minuto por IP; o resto da API, 120.
+- Todos os DTOs rodam com `whitelist` e `forbidNonWhitelisted`: campo fora do DTO retorna 400.
+
+## Firestore
+
+Só a API acessa o banco, pelo Admin SDK. As regras em `firestore.rules` negam qualquer acesso de cliente e devem estar publicadas no projeto:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+firebase deploy --only firestore:rules
 ```
 
-## Run tests
+## Scripts
 
-```bash mnn
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```bash
+npm run build                 # compila para dist/
+npm run lint                  # eslint --fix
+npm test                      # jest
+npm run seed                  # ver src/seed.ts para as tasks disponíveis
 ```
-
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash nn
-$ npm install -g mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

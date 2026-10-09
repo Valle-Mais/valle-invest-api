@@ -1,27 +1,31 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Habilita a validação automática para todos os DTOs
+  // Atrás do proxy da Vercel, o IP real vem em X-Forwarded-For.
+  // Necessário para o rate limit por IP funcionar.
+  app.set('trust proxy', 1);
+
+  // Validação automática de todos os DTOs.
+  // whitelist + forbidNonWhitelisted: campos fora do DTO viram 400,
+  // em vez de chegarem ao serviço.
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true, // Adicione esta opção
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
 
-  // --- CONFIGURAÇÃO DE CORS PARA PRODUÇÃO ---
+  // CORS: em produção, FRONTEND_URLS="https://app.exemplo.com,https://outro.com".
+  const allowedOrigins = process.env.FRONTEND_URLS?.split(',').map((o) =>
+    o.trim(),
+  ) || ['http://localhost:4200'];
 
-  // 1. Lê as URLs permitidas a partir de uma variável de ambiente.
-  // Em produção, você definirá FRONTEND_URLS="https://www.seusite.com"
-  // Em desenvolvimento, ele usará o valor padrão 'http://localhost:4200'.
-  const allowedOrigins = process.env.FRONTEND_URLS?.split(',') || [
-    'http://localhost:4200',
-  ];
-
-  // 2. Habilita o CORS com a lista de origens permitidas.
   app.enableCors({
     origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,OPTIONS,PATCH,POST,DELETE',

@@ -14,7 +14,10 @@ import { FundOperationsService } from './fund-operations.service';
 import { CreateFundOperationDto } from './dto/create-fund-operation.dto';
 import { UpdateFundOperationDto } from './dto/update-fund-operation.dto';
 import { FindAllFundOperationsDto } from './dto/find-all-fund-operations.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 
+/** Operações do fundo: exclusivas do admin. */
+@Roles('admin')
 @Controller('fund-operations')
 export class FundOperationsController {
   constructor(private readonly fundOperationsService: FundOperationsService) {}

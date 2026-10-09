@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Nenhum cliente (SDK web, mobile, REST com chave de API) acessa o Firestore
+// diretamente. Todo acesso passa pela valle-invest-api, que usa o Admin SDK
+// e ignora estas regras.
+//
+// Publicar com: firebase deploy --only firestore:rules
+// ou colar no console do Firebase em Firestore > Regras.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

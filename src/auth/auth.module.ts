@@ -17,7 +17,7 @@ import { FirebaseModule } from '../firebase/firebase.module'; // 1. Importe o Fi
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'DEFAULT_SECRET_KEY_CHANGE_ME'),
+        secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: '1d' },
       }),
     }),
