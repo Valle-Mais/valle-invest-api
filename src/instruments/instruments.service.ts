@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Inject, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  ConflictException,
+} from '@nestjs/common';
 import { CreateInstrumentDto } from './dto/create-instrument.dto';
 import { UpdateInstrumentDto } from './dto/update-instrument.dto';
 import { Instrument } from './entities/instrument.entity';
@@ -11,13 +16,14 @@ export class InstrumentsService {
   constructor(@Inject('FIRESTORE') private readonly firestore: Firestore) {}
 
   async create(createDto: CreateInstrumentDto): Promise<Instrument> {
-    const existing = await this.firestore.collection(this.collectionName)
-        .where('name', '==', createDto.name.toUpperCase())
-        .limit(1)
-        .get();
+    const existing = await this.firestore
+      .collection(this.collectionName)
+      .where('name', '==', createDto.name.toUpperCase())
+      .limit(1)
+      .get();
 
     if (!existing.empty) {
-        throw new ConflictException(`O instrumento ${createDto.name} já existe.`);
+      throw new ConflictException(`O instrumento ${createDto.name} já existe.`);
     }
 
     const newInstrument = {
@@ -25,23 +31,31 @@ export class InstrumentsService {
       name: createDto.name.toUpperCase(), // Padroniza para maiúsculas
     };
 
-    const docRef = await this.firestore.collection(this.collectionName).add(newInstrument);
-    
+    const docRef = await this.firestore
+      .collection(this.collectionName)
+      .add(newInstrument);
+
     return {
       id: docRef.id,
-      ...newInstrument
+      ...newInstrument,
     };
   }
 
   async findAll(): Promise<Instrument[]> {
-    const snapshot = await this.firestore.collection(this.collectionName).orderBy('name').get();
+    const snapshot = await this.firestore
+      .collection(this.collectionName)
+      .orderBy('name')
+      .get();
     if (snapshot.empty) {
       return [];
     }
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Instrument));
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Instrument,
+    );
   }
 
   async findOne(id: string): Promise<Instrument> {
@@ -55,11 +69,14 @@ export class InstrumentsService {
     return { id: doc.id, ...doc.data() } as Instrument;
   }
 
-  async update(id: string, updateDto: UpdateInstrumentDto): Promise<Instrument> {
+  async update(
+    id: string,
+    updateDto: UpdateInstrumentDto,
+  ): Promise<Instrument> {
     const docRef = this.firestore.collection(this.collectionName).doc(id);
-    
+
     if (updateDto.name) {
-        updateDto.name = updateDto.name.toUpperCase();
+      updateDto.name = updateDto.name.toUpperCase();
     }
 
     await docRef.update({ ...updateDto });
@@ -73,7 +90,7 @@ export class InstrumentsService {
     const doc = await docRef.get();
 
     if (!doc.exists) {
-        throw new NotFoundException(`Instrumento com ID ${id} não encontrado.`);
+      throw new NotFoundException(`Instrumento com ID ${id} não encontrado.`);
     }
 
     await docRef.delete();

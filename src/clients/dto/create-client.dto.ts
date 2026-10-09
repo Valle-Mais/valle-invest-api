@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsEmail, IsIn, IsOptional, IsNumber, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsNumber,
+  Min,
+} from 'class-validator';
 
 export class CreateClientDto {
   @IsString({ message: 'O nome deve ser um texto.' })
@@ -9,7 +17,9 @@ export class CreateClientDto {
   @IsNotEmpty({ message: 'O email não pode estar vazio.' })
   email: string;
 
-  @IsIn(['admin', 'client'], { message: 'O cargo deve ser "admin" ou "client".' })
+  @IsIn(['admin', 'client'], {
+    message: 'O cargo deve ser "admin" ou "client".',
+  })
   role: 'admin' | 'client';
 
   @IsNumber({}, { message: 'O saldo deve ser um número.' })

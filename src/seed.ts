@@ -16,7 +16,7 @@ async function bootstrap() {
   const task = args.find((arg) => arg.startsWith('--task='))?.split('=')[1];
 
   try {
-      if (task === 'cleanup') {
+    if (task === 'cleanup') {
       await seeder.cleanupClients();
     } else if (task === 'backfill') {
       await seeder.backfillLucroPercentual();

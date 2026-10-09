@@ -15,11 +15,12 @@ import { IbovespaModule } from 'src/ibovespa/ibovespa.module';
     FirebaseModule,
     ClientTransactionsModule,
     CdiModule,
-    FundOperationsModule, ClientsModule,
-    IbovespaModule
+    FundOperationsModule,
+    ClientsModule,
+    IbovespaModule,
   ],
   controllers: [PerformanceController],
   providers: [PerformanceService],
-  exports: [PerformanceService], 
+  exports: [PerformanceService],
 })
 export class PerformanceModule {}

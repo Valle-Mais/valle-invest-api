@@ -7,7 +7,7 @@ import { FundOperationsModule } from 'src/fund-operations/fund-operations.module
 import { PerformanceModule } from 'src/performance/performance.module';
 
 @Module({
-   imports: [
+  imports: [
     FirebaseModule, // Para acesso direto ao DB, se necessário
     ClientsModule,
     ClientTransactionsModule,
@@ -15,6 +15,6 @@ import { PerformanceModule } from 'src/performance/performance.module';
     ClientsModule,
     PerformanceModule,
   ],
-  providers: [SeederService]
+  providers: [SeederService],
 })
 export class SeederModule {}

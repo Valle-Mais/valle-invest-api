@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Inject, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  ConflictException,
+} from '@nestjs/common';
 import { Firestore } from '@google-cloud/firestore';
 import { CreateClientDto } from 'src/clients/dto/create-client.dto'; // Ajuste o caminho se necessário
 import { UpdateClientDto } from 'src/clients/dto/update-client.dto'; // Ajuste o caminho se necessário
@@ -11,13 +16,16 @@ export class UsersService {
   constructor(@Inject('FIRESTORE') private readonly firestore: Firestore) {}
 
   async create(createClientDto: CreateClientDto): Promise<Client> {
-    const existingUser = await this.firestore.collection(this.collectionName)
-        .where('email', '==', createClientDto.email)
-        .limit(1)
-        .get();
+    const existingUser = await this.firestore
+      .collection(this.collectionName)
+      .where('email', '==', createClientDto.email)
+      .limit(1)
+      .get();
 
     if (!existingUser.empty) {
-        throw new ConflictException(`O email ${createClientDto.email} já está em uso.`);
+      throw new ConflictException(
+        `O email ${createClientDto.email} já está em uso.`,
+      );
     }
 
     const newUser: Omit<Client, 'id'> = {
@@ -27,23 +35,31 @@ export class UsersService {
       totalInvestido: createClientDto.totalInvestido || 0,
     };
 
-    const docRef = await this.firestore.collection(this.collectionName).add(newUser);
-    
+    const docRef = await this.firestore
+      .collection(this.collectionName)
+      .add(newUser);
+
     return {
       id: docRef.id,
-      ...newUser
+      ...newUser,
     };
   }
 
   async findAll(): Promise<Client[]> {
-    const snapshot = await this.firestore.collection(this.collectionName).orderBy('name').get();
+    const snapshot = await this.firestore
+      .collection(this.collectionName)
+      .orderBy('name')
+      .get();
     if (snapshot.empty) {
       return [];
     }
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Client));
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Client,
+    );
   }
 
   async findOne(id: string): Promise<Client> {
@@ -59,7 +75,8 @@ export class UsersService {
 
   // MÉTODO ADICIONADO AQUI
   async findOneByEmail(email: string): Promise<Client | undefined> {
-    const snapshot = await this.firestore.collection(this.collectionName)
+    const snapshot = await this.firestore
+      .collection(this.collectionName)
       .where('email', '==', email)
       .limit(1)
       .get();
@@ -85,7 +102,7 @@ export class UsersService {
     const doc = await docRef.get();
 
     if (!doc.exists) {
-        throw new NotFoundException(`Usuário com ID ${id} não encontrado.`);
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado.`);
     }
 
     await docRef.delete();

@@ -1,8 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { InstrumentsService } from './instruments.service';
 import { CreateInstrumentDto } from './dto/create-instrument.dto';
 import { UpdateInstrumentDto } from './dto/update-instrument.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 
+/** Instrumentos: exclusivos do admin. */
+@Roles('admin')
 @Controller('instruments')
 export class InstrumentsController {
   constructor(private readonly instrumentsService: InstrumentsService) {}
@@ -24,7 +37,10 @@ export class InstrumentsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateInstrumentDto: UpdateInstrumentDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateInstrumentDto: UpdateInstrumentDto,
+  ) {
     return this.instrumentsService.update(id, updateInstrumentDto);
   }
 
