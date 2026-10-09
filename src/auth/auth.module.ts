@@ -1,18 +1,21 @@
 // src/auth/auth.module.ts
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { AuthTokensService } from './auth-tokens.service';
 import { JwtStrategy } from './jwt.strategy';
-import { FirebaseModule } from '../firebase/firebase.module'; // 1. Importe o FirebaseModule
+import { UsersModule } from '../users/users.module';
+import { FirebaseModule } from '../firebase/firebase.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    FirebaseModule, // 2. Adicione o FirebaseModule aqui
+    FirebaseModule,
     UsersModule,
+    MailModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -23,6 +26,7 @@ import { FirebaseModule } from '../firebase/firebase.module'; // 1. Importe o Fi
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, AuthTokensService, JwtStrategy],
+  exports: [AuthService],
 })
 export class AuthModule {}

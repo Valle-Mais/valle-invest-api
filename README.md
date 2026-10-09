@@ -26,12 +26,34 @@ A API não sobe sem `JWT_SECRET`, `FIREBASE_CREDENTIALS_BASE64` e `RESEND_API_KE
 
 ## Autenticação e autorização
 
-- Toda rota exige `Authorization: Bearer <jwt>`. O guard é global (`JwtAuthGuard` em `app.module.ts`); rotas públicas levam `@Public()`. Hoje são: `GET /`, `POST /auth/request-link`, `POST /auth/verify-token`.
+- Toda rota exige `Authorization: Bearer <jwt>`. O guard é global (`JwtAuthGuard` em `app.module.ts`); rotas públicas levam `@Public()`. Hoje são: `GET /`, `POST /auth/login`, `POST /auth/forgot-password`, `POST /auth/reset-password` e, durante a transição, `POST /auth/request-link` e `POST /auth/verify-token`.
 - Papéis: `admin` e `client`. Rotas marcadas com `@Roles('admin')` recusam cliente com 403.
 - Cliente só acessa os próprios dados em `GET /clients/:id`, `GET /performance/:clientId`, `GET /client-transactions` e `GET /client-transactions/:id` (`assertOwnership` em `src/auth/ownership.ts`). Em `POST /client-transactions/request`, o `clientId` vem do token, não do body.
-- Não existe registro público. Usuários são criados por um admin em `POST /clients`.
-- `/auth/*` tem rate limit de 5 requisições por minuto por IP; o resto da API, 120.
+- Não existe registro público. Usuários são criados por um admin em `POST /clients`, que dispara o convite de primeiro acesso por email.
+- As rotas públicas de `/auth/*` têm rate limit de 5 requisições por minuto por IP; o resto da API, 120.
 - Todos os DTOs rodam com `whitelist` e `forbidNonWhitelisted`: campo fora do DTO retorna 400.
+
+### Login com senha
+
+| Rota | Quem | O que faz |
+|---|---|---|
+| `POST /auth/login` `{ email, password }` | público | Devolve `{ access_token, user }`. 401 genérico para email ou senha errados. 403 com `code: "MUST_SET_PASSWORD"` se o usuário ainda não definiu senha |
+| `POST /auth/forgot-password` `{ email }` | público | Sempre 200. Se o email existir, envia link de redefinição (1 h). Quem nunca definiu senha recebe o convite (7 dias) |
+| `POST /auth/reset-password` `{ token, password }` | público | Aceita token de convite ou de redefinição, grava o hash, invalida os demais tokens do usuário |
+| `GET /auth/me` | autenticado | Usuário atual, sem `passwordHash` |
+| `PATCH /auth/password` `{ currentPassword, newPassword }` | autenticado | Exige a senha atual |
+| `POST /auth/invite/resend` `{ userId }` | admin | Reenvia o convite de primeiro acesso |
+
+- Senhas: bcrypt custo 12 (`src/auth/password.ts`). Política: 8+ caracteres com letra e número. `passwordHash` nunca sai em resposta (`src/users/user.sanitizer.ts`).
+- Tokens de email: coleção `authTokens`, documento identificado pelo SHA-256 do token, uso único, com tipo `invite`, `reset` ou `magic` (`src/auth/auth-tokens.service.ts`).
+- Emails: `src/mail/` (Resend). Links usam `origin` do pedido ou `FRONTEND_URL`. **Em produção, `FRONTEND_URL` precisa apontar para o front publicado**, senão o convite criado pelo admin leva para `localhost`.
+- Migração dos usuários existentes para senha, uma vez, no cutover:
+
+```bash
+npm run seed -- --task=invite-all
+```
+
+Marca todos com `mustSetPassword` e envia o convite, com pausa entre envios por causa do rate limit do Resend.
 
 ## Firestore
 

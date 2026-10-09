@@ -1,6 +1,6 @@
 // src/clients/dto/client-response.dto.ts
 
-// Este DTO representa o objeto que será enviado na resposta da API
+/** Objeto devolvido em GET /clients. Sem nenhum campo de autenticação além de mustSetPassword. */
 export class ClientResponseDto {
   id: string;
   name: string;
@@ -9,5 +9,7 @@ export class ClientResponseDto {
   status: 'Ativo' | 'Inativo';
   role: 'admin' | 'client';
   totalInvestido: number;
-  participationPercent: number; // O novo campo
+  participationPercent: number;
+  /** true enquanto o usuário não definiu senha; o admin pode reenviar o convite. */
+  mustSetPassword: boolean;
 }

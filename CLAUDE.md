@@ -40,7 +40,9 @@ A API não sobe sem `JWT_SECRET`, `FIREBASE_CREDENTIALS_BASE64` e `RESEND_API_KE
 - Papéis: `admin` e `client`. Rotas administrativas levam `@Roles('admin')`, no método ou na classe.
 - Dados por cliente: use `@CurrentUser()` e `assertOwnership(user, clientId)` de `src/auth/ownership.ts`. Nunca confie em `clientId` vindo do body ou da query quando o usuário é cliente.
 - `AuthUser` (`src/auth/auth-user.interface.ts`) é o tipo de `req.user`: `{ userId, email, role }`.
-- Login hoje é por magic link (`/auth/request-link` e `/auth/verify-token`). Login com senha é a Fase 1 do plano; quando existir, `passwordHash` nunca sai em resposta.
+- Login é por email e senha (`POST /auth/login`), com primeiro acesso por convite, recuperação e troca de senha. Tudo em `src/auth/auth.service.ts`; tokens de email em `auth-tokens.service.ts`; hash em `password.ts`; emails em `src/mail/`. O magic link (`request-link`, `verify-token`) ainda existe só para a transição e sai na Fase 5.
+- `passwordHash` nunca sai em resposta. Todo retorno de `users` passa por `stripSensitive` (`src/users/user.sanitizer.ts`). Só `UsersService.findRaw*` devolve o documento inteiro, e só o `AuthService` chama esses métodos.
+- Campos de autenticação (`passwordHash`, `passwordSetAt`, `mustSetPassword`) são escritos só por `UsersService.setAuthFields`, nunca pelos DTOs públicos.
 
 ## Regras de código
 
@@ -62,5 +64,5 @@ A API não sobe sem `JWT_SECRET`, `FIREBASE_CREDENTIALS_BASE64` e `RESEND_API_KE
 
 ## Testes
 
-- Jest, specs ao lado do código. Os guards, `assertOwnership` e a validação de ambiente têm testes; o motor de rateio e `PerformanceService` ainda não (Fase 1.5 do plano).
+- Jest, specs ao lado do código. Guards, `assertOwnership`, validação de ambiente, política de senha e os fluxos do `AuthService` (com mocks) têm testes; o motor de rateio e `PerformanceService` ainda não (Fase 1.5 do plano).
 - Não há testes de integração com Firestore. Para validar fluxos ponta a ponta, usar o front contra a API local com `.env` de staging.
