@@ -112,6 +112,20 @@ export class UsersService {
       .update({ ...fields });
   }
 
+  /** Campos de perfil que o próprio usuário pode alterar. */
+  async setProfileFields(
+    id: string,
+    fields: { phone?: string },
+  ): Promise<void> {
+    const payload: Record<string, unknown> = {};
+    if (fields.phone !== undefined) payload.phone = fields.phone.trim();
+    if (Object.keys(payload).length === 0) return;
+    await this.firestore
+      .collection(this.collectionName)
+      .doc(id)
+      .update(payload);
+  }
+
   async update(
     id: string,
     updateClientDto: UpdateClientDto,

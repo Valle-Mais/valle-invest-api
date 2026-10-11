@@ -187,6 +187,14 @@ export class AuthService {
   // Sessão
   // ---------------------------------------------------------------------
 
+  async updateProfile(
+    userId: string,
+    fields: { phone?: string },
+  ): Promise<PublicUser<Client>> {
+    await this.usersService.setProfileFields(userId, fields);
+    return this.me(userId);
+  }
+
   async me(userId: string): Promise<PublicUser<Client>> {
     const user = await this.usersService.findRawById(userId);
     if (!user) throw new UnauthorizedException();

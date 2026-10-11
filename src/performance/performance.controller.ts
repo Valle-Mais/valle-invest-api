@@ -6,6 +6,22 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth-user.interface';
 import { assertOwnership } from '../auth/ownership';
 
+/**
+ * Períodos aceitos: enum curto do front novo (mes, 6m, ano, inicio) ou as
+ * strings legadas. Tudo vira a string que o PerformanceService entende.
+ */
+const PERIOD_ALIASES: Record<string, string> = {
+  mes: 'Mês',
+  '6m': '6 meses',
+  ano: 'Ano',
+  inicio: 'Desde o início',
+};
+
+export function normalizePeriod(periodo?: string): string {
+  if (!periodo) return 'Ano';
+  return PERIOD_ALIASES[periodo.toLowerCase()] ?? periodo;
+}
+
 @Controller('performance')
 export class PerformanceController {
   constructor(private readonly performanceService: PerformanceService) {}
@@ -14,7 +30,9 @@ export class PerformanceController {
   @Roles('admin')
   @Get('admin/summary')
   async getAdminDashboardSummary(@Query('periodo') periodo: string = 'Ano') {
-    return this.performanceService.getAdminDashboardSummary(periodo);
+    return this.performanceService.getAdminDashboardSummary(
+      normalizePeriod(periodo),
+    );
   }
 
   /**
@@ -28,6 +46,9 @@ export class PerformanceController {
     @CurrentUser() user: AuthUser,
   ): Promise<DashboardDataDto> {
     assertOwnership(user, clientId);
-    return this.performanceService.getDashboardData(clientId, periodo);
+    return this.performanceService.getDashboardData(
+      clientId,
+      normalizePeriod(periodo),
+    );
   }
 }

@@ -1,12 +1,11 @@
-// Em src/client-transactions/dto/create-client-transaction.dto.ts
-
 import {
   IsDateString,
-  IsNotEmpty,
-  IsString,
   IsIn,
+  IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
+  IsString,
 } from 'class-validator';
 
 export class CreateClientTransactionDto {
@@ -14,10 +13,14 @@ export class CreateClientTransactionDto {
   @IsNotEmpty()
   data: string;
 
+  /**
+   * Obrigatório quando o admin registra (POST /client-transactions).
+   * Ignorado na solicitação do cliente (POST /client-transactions/request): vem do token.
+   */
+  @IsOptional()
   @IsString()
-  clientId: string;
+  clientId?: string;
 
-  // ATUALIZE AQUI para incluir 'Rendimento'
   @IsIn(['Aporte', 'Resgate', 'Rendimento'])
   tipo: 'Aporte' | 'Resgate' | 'Rendimento';
 

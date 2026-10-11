@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsNumber,
   Min,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateClientDto {
@@ -26,4 +27,9 @@ export class CreateClientDto {
   @Min(0, { message: 'O saldo não pode ser negativo.' })
   @IsOptional() // O saldo é opcional na criação, pode começar com 0
   totalInvestido?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
 }

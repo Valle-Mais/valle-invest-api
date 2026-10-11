@@ -1,4 +1,12 @@
-import { IsOptional, IsISO8601, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class FindAllTransactionsDto {
   @IsOptional()
@@ -20,4 +28,20 @@ export class FindAllTransactionsDto {
   @IsOptional()
   @IsString()
   clientId?: string;
+
+  @IsOptional()
+  @IsIn(['Pendente', 'Aprovado', 'Negado'])
+  status?: 'Pendente' | 'Aprovado' | 'Negado';
+
+  /** `operation` anexa a operação do fundo aos rendimentos. */
+  @IsOptional()
+  @IsIn(['operation'])
+  include?: 'operation';
+
+  /** Máximo de itens. Com clientId, o saldo é calculado antes do corte. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
 }

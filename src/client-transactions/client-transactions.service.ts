@@ -126,7 +126,10 @@ export class ClientTransactionsService {
   /**
    * MÉTODO CREATE (Refatorado para usar recalculateClientBalance)
    */
-  async create(createDto: CreateClientTransactionDto, status: 'Pendente' | 'Aprovado'): Promise<ClientTransaction> {
+  async create(
+    createDto: CreateClientTransactionDto & { clientId: string },
+    status: 'Pendente' | 'Aprovado',
+  ): Promise<ClientTransaction> {
     const userDocRef = this.firestore.collection(this.usersCollectionName).doc(createDto.clientId);
     const newTransactionRef = this.firestore.collection(this.collectionName).doc();
 
@@ -135,6 +138,8 @@ export class ClientTransactionsService {
       data: this.parseDateAsUTC(createDto.data),
       clientName: '', // Será preenchido na transação
       status,
+      // Hora em que passa a contar para o rateio (desempate no mesmo dia, ver fund-operations/rateio.ts)
+      ...(status === 'Aprovado' ? { approvedAt: new Date() } : {}),
     };
 
     await this.firestore.runTransaction(async (t) => {
@@ -200,6 +205,9 @@ export class ClientTransactionsService {
     if (updateDto.tipo) updatePayload.tipo = updateDto.tipo;
     if (updateDto.valor !== undefined) updatePayload.valor = updateDto.valor;
     if (updateDto.status) updatePayload.status = updateDto.status;
+    if (updateDto.status === 'Aprovado' && initialData.status !== 'Aprovado') {
+      updatePayload.approvedAt = new Date(); // passa a contar para o rateio a partir de agora
+    }
 
     // 1. Executar a transação (Atualiza o saldo - Ponto 1 da regra)
     await this.firestore.runTransaction(async (t) => {
@@ -310,20 +318,69 @@ export class ClientTransactionsService {
       query = query.where('data', '<=', end);
     }
     if (queryDto?.clientId) query = query.where('clientId', '==', queryDto.clientId);
+    if (queryDto?.status) query = query.where('status', '==', queryDto.status);
 
     const snapshot = await query.get();
     if (snapshot.empty) return [];
-    
-    return snapshot.docs.map(doc => {
+
+    let transactions = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
         ...data,
-        data: data.data && typeof data.data.toDate === 'function' 
-            ? data.data.toDate() 
+        data: data.data && typeof data.data.toDate === 'function'
+            ? data.data.toDate()
             : new Date(data.data),
       } as ClientTransaction;
     });
+
+    // Saldo após cada transação, só faz sentido na listagem de um cliente.
+    // Calculado em ordem cronológica sobre as aprovadas; o resultado mantém a ordem desc.
+    if (queryDto?.clientId) {
+      transactions = this.attachRunningBalance(transactions);
+    }
+
+    if (queryDto?.include === 'operation') {
+      transactions = await this.attachOperations(transactions);
+    }
+
+    if (queryDto?.limit) {
+      transactions = transactions.slice(0, queryDto.limit);
+    }
+
+    return transactions;
+  }
+
+  private attachRunningBalance(transactions: ClientTransaction[]): ClientTransaction[] {
+    const chronological = [...transactions].sort((a, b) => a.data.getTime() - b.data.getTime());
+    const balanceById = new Map<string, number>();
+    let balance = 0;
+    for (const t of chronological) {
+      if (t.status !== 'Aprovado') continue;
+      balance += t.tipo === 'Resgate' ? -t.valor : t.valor;
+      balanceById.set(t.id!, parseFloat(balance.toFixed(2)));
+    }
+    return transactions.map(t => ({ ...t, saldoApos: balanceById.get(t.id!) ?? null }));
+  }
+
+  private async attachOperations(transactions: ClientTransaction[]): Promise<ClientTransaction[]> {
+    const ids = [...new Set(transactions.map(t => t.operationId).filter((id): id is string => !!id))];
+    if (ids.length === 0) return transactions.map(t => ({ ...t, operation: null }));
+
+    const refs = ids.map(id => this.firestore.collection('fund_operations').doc(id));
+    const docs = await this.firestore.getAll(...refs);
+    const byId = new Map<string, { id: string; descricao: string; data: Date }>();
+    docs.forEach(doc => {
+      if (!doc.exists) return;
+      const data = doc.data()!;
+      byId.set(doc.id, {
+        id: doc.id,
+        descricao: data.descricao ?? '',
+        data: data.data && typeof data.data.toDate === 'function' ? data.data.toDate() : new Date(data.data),
+      });
+    });
+
+    return transactions.map(t => ({ ...t, operation: t.operationId ? byId.get(t.operationId) ?? null : null }));
   }
 
   async findOne(id: string): Promise<ClientTransaction> {

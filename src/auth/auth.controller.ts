@@ -21,6 +21,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResendInviteDto } from './dto/resend-invite.dto';
 import { RequestLinkDto } from './dto/request-link.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 /** 5 tentativas por minuto por IP nas rotas públicas de autenticação. */
 const AUTH_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
@@ -65,6 +66,11 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.authService.me(user.userId);
+  }
+
+  @Patch('profile')
+  updateProfile(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(user.userId, dto);
   }
 
   @Patch('password')

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -30,8 +31,14 @@ export class ClientTransactionsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createClientTransactionDto: CreateClientTransactionDto) {
+    if (!createClientTransactionDto.clientId) {
+      throw new BadRequestException('Informe o cliente da transação.');
+    }
     return this.clientTransactionsService.create(
-      createClientTransactionDto,
+      {
+        ...createClientTransactionDto,
+        clientId: createClientTransactionDto.clientId,
+      },
       'Aprovado',
     );
   }

@@ -24,7 +24,29 @@ export class IbovespaService {
 
   constructor() {}
 
+  private cache?: { at: number; data: MonthlyReturn[] };
+  private inflight?: Promise<MonthlyReturn[]>;
+  private static readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+  /** Retornos mensais com cache de 6 horas por instância. Resultado vazio não é cacheado. */
   public async getMonthlyReturns(): Promise<MonthlyReturn[]> {
+    if (this.cache && Date.now() - this.cache.at < IbovespaService.CACHE_TTL_MS) {
+      return this.cache.data;
+    }
+    if (!this.inflight) {
+      this.inflight = this.fetchMonthlyReturns()
+        .then((data) => {
+          if (data.length > 0) this.cache = { at: Date.now(), data };
+          return data;
+        })
+        .finally(() => {
+          this.inflight = undefined;
+        });
+    }
+    return this.inflight;
+  }
+
+  private async fetchMonthlyReturns(): Promise<MonthlyReturn[]> {
     this.logger.log('Buscando dados diários do Ibovespa no Yahoo Finance...');
     
     // Define o período de busca para os últimos 5 anos
