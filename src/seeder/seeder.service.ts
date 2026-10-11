@@ -195,6 +195,40 @@ private async seedFundOperations() {
     this.logger.log('------------------------------------------------------------------\n');
   }
 
+  /**
+   * Fase 1.5: apaga todos os rendimentos e os recria desde a primeira operação
+   * com o motor corrigido (base na véspera da operação, `taxa` gravada).
+   * Imprime o saldo de cada cliente antes e depois para conferência.
+   */
+  async rebuildYields() {
+    this.logger.log('--- REBUILD DE RENDIMENTOS (Fase 1.5) ---');
+    const before = new Map((await this.clientsService.findAll()).map(c => [c.id, c]));
+
+    const summary = await this.operationsService.reprocessOperationsFrom(new Date(0));
+
+    const after = await this.clientsService.findAll();
+    const rows = after
+      .filter(c => c.role === 'client')
+      .map(c => {
+        const antes = before.get(c.id)?.totalInvestido ?? 0;
+        const depois = c.totalInvestido ?? 0;
+        return {
+          Cliente: c.name,
+          Antes: antes.toFixed(2),
+          Depois: depois.toFixed(2),
+          Diferenca: (depois - antes).toFixed(2),
+        };
+      })
+      .sort((a, b) => Math.abs(Number(b.Diferenca)) - Math.abs(Number(a.Diferenca)));
+
+    this.logger.log(
+      `Operações: ${summary.operations}. Rendimentos apagados: ${summary.deletedYields}. Gravados: ${summary.createdYields}.`,
+    );
+    console.table(rows);
+    const alterados = rows.filter(r => Number(r.Diferenca) !== 0).length;
+    this.logger.log(`${alterados} de ${rows.length} clientes tiveram o saldo alterado.`);
+  }
+
   async backfillLucroPercentual() {
     this.logger.log('Iniciando backfill para o campo "lucroPercentual"...');
 

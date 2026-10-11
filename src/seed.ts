@@ -6,6 +6,7 @@
 //   validate     valida o cálculo de performance
 //   deleteFluxos apaga aportes e resgates
 //   invite-all   migração para login com senha: convida todos os usuários
+//   rebuild-yields  Fase 1.5: recria todos os rendimentos com o motor corrigido
 //   (sem task)   popula o banco com dados de exemplo
 
 import { NestFactory } from '@nestjs/core';
@@ -32,6 +33,8 @@ async function bootstrap() {
       await seeder.validatePerformanceCalculation();
     } else if (task === 'deleteFluxos') {
       await seeder.deleteAllAportesResgates();
+    } else if (task === 'rebuild-yields') {
+      await seeder.rebuildYields();
     } else if (task === 'invite-all') {
       const auth = appContext.get(AuthService, { strict: false });
       const result = await auth.inviteAll();

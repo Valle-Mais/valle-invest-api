@@ -43,6 +43,7 @@ A API não sobe sem `JWT_SECRET`, `FIREBASE_CREDENTIALS_BASE64` e `RESEND_API_KE
 | `GET /auth/me` | autenticado | Usuário atual, sem `passwordHash` |
 | `PATCH /auth/password` `{ currentPassword, newPassword }` | autenticado | Exige a senha atual |
 | `POST /auth/invite/resend` `{ userId }` | admin | Reenvia o convite de primeiro acesso |
+| `PATCH /auth/profile` `{ phone? }` | autenticado | Dados de contato do próprio usuário |
 
 - Senhas: bcrypt custo 12 (`src/auth/password.ts`). Política: 8+ caracteres com letra e número. `passwordHash` nunca sai em resposta (`src/users/user.sanitizer.ts`).
 - Tokens de email: coleção `authTokens`, documento identificado pelo SHA-256 do token, uso único, com tipo `invite`, `reset` ou `magic` (`src/auth/auth-tokens.service.ts`).
@@ -54,6 +55,21 @@ npm run seed -- --task=invite-all
 ```
 
 Marca todos com `mustSetPassword` e envia o convite, com pausa entre envios por causa do rate limit do Resend.
+
+## Operações do fundo
+
+- `POST /fund-operations/preview { resultado, data? }` (admin) simula o rateio e devolve `patrimonioBase`, `taxa` e a lista por cliente, sem gravar.
+- `POST /fund-operations` sem `resultado` usa `valorVenda - valorInvestido`.
+- Rateio (Fase 1.5): participa de uma operação quem já estava na base quando ela foi registrada: transações aprovadas de dias anteriores, mais as do mesmo dia aprovadas antes da hora de registro da operação (`approvedAt` da transação vs `createdAt` da operação; documentos antigos usam o `createTime` do Firestore). Cliente criado depois da operação não entra nela, mesmo no mesmo dia. Cada rendimento guarda `operationId` e `taxa`; a operação guarda `patrimonioBase` e `taxa`. Criar, editar ou excluir uma operação, ou aprovar um aporte/resgate com data anterior a alguma operação, reprocessa em ordem cronológica tudo a partir da data afetada, numa única transação. Regras e funções puras em `src/fund-operations/rateio.ts`.
+- Depois de mudar o motor (ou para corrigir rendimentos gerados pelo motor antigo), reconstruir todos os rendimentos, primeiro em staging:
+
+```bash
+npm run seed -- --task=rebuild-yields
+```
+
+Imprime o saldo de cada cliente antes e depois.
+- `GET /performance/admin/summary?periodo=mes|6m|ano|inicio` traz `kpis.fluxoLiquidoMes` e `kpis.pendentes`.
+- `GET /client-transactions` aceita `clientId`, `status`, `startDate`, `endDate`, `include=operation` e `limit`; com `clientId` devolve `saldoApos`.
 
 ## Firestore
 

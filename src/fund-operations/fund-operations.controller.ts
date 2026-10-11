@@ -14,6 +14,7 @@ import { FundOperationsService } from './fund-operations.service';
 import { CreateFundOperationDto } from './dto/create-fund-operation.dto';
 import { UpdateFundOperationDto } from './dto/update-fund-operation.dto';
 import { FindAllFundOperationsDto } from './dto/find-all-fund-operations.dto';
+import { PreviewFundOperationDto } from './dto/preview-fund-operation.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 
 /** Operações do fundo: exclusivas do admin. */
@@ -26,6 +27,16 @@ export class FundOperationsController {
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createFundOperationDto: CreateFundOperationDto) {
     return this.fundOperationsService.create(createFundOperationDto);
+  }
+
+  /** Simula o rateio antes de salvar. Não grava nada. */
+  @Post('preview')
+  @HttpCode(HttpStatus.OK)
+  preview(@Body() dto: PreviewFundOperationDto) {
+    return this.fundOperationsService.previewDistribution(
+      dto.resultado,
+      dto.data,
+    );
   }
 
   @Get()

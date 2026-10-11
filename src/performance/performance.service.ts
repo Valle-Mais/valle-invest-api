@@ -9,6 +9,7 @@ import { CdiService } from 'src/cdi/cdi.service';
 import { ClientTransaction } from 'src/client-transactions/entities/client-transaction.entity';
 import { ClientsService } from 'src/clients/clients.service';
 import { IbovespaService } from 'src/ibovespa/ibovespa.service';
+import { monthlyReturnFromRates } from './monthly-return';
 
 // Interface para a tabela de rentabilidade
 interface PerformanceYear {
@@ -106,6 +107,14 @@ export class PerformanceService {
       }
     });
 
+    // Taxas das operações por mês (Fase 1.5): a rentabilidade do mês é o produto de (1 + taxa).
+    const opTaxasByMonth = new Map<string, Array<number | undefined>>();
+    allOperations.forEach(op => {
+      const key = `${op.data.getFullYear()}-${op.data.getMonth()}`;
+      if (!opTaxasByMonth.has(key)) opTaxasByMonth.set(key, []);
+      opTaxasByMonth.get(key)!.push(op.taxa);
+    });
+
     // 5️⃣ Gerar meses relevantes
     const relevantMonths: { year: number; month: number }[] = [];
     const tempDate = new Date(startDate);
@@ -144,13 +153,12 @@ export class PerformanceService {
       const key = `${m.year}-${m.month}`;
       const activity = monthlyActivity.get(key) || { lucro: 0, fluxo: 0, aportes: 0 };
 
-      // --- INÍCIO DA CORREÇÃO ---
-      // A base de rentabilidade (TWR) é o patrimônio anterior + Aportes do mês.
-      // Resgates (que estão em 'activity.fluxo') não entram na base.
-      // Esta é a mesma lógica TWR usada no dashboard do cliente.
-      const saldoBase = patrimonioInicial + activity.aportes;
-      const retornoMes = saldoBase > 0 ? activity.lucro / saldoBase : 0;
-      // --- FIM DA CORREÇÃO ---
+      // Rentabilidade do mês: produto de (1 + taxa) das operações do mês.
+      // Fallback (operação sem taxa, antes do backfill): lucro / (patrimônio anterior + aportes).
+      const retornoMes = monthlyReturnFromRates(opTaxasByMonth.get(key) ?? [], {
+        profit: activity.lucro,
+        base: patrimonioInicial + activity.aportes,
+      });
 
       // 1. Acumular Fatores TWR
       fundoFactor *= (1 + retornoMes);
@@ -198,6 +206,13 @@ export class PerformanceService {
     const percentualSobreCDI = cdiTotalReturnPeriodo ? rentabilidadeTWR / cdiTotalReturnPeriodo : 0;
     const percentualSobreIbov = ibovTotalReturnPeriodo ? rentabilidadeTWR / ibovTotalReturnPeriodo : 0;
 
+    // Fluxo líquido do mês corrente: aportes menos resgates aprovados
+    const monthStart = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    const fluxoLiquidoMes = transacoesAprovadas
+      .filter(t => t.data >= monthStart && t.data <= endDate)
+      .reduce((sum, t) => sum + (t.tipo === 'Aporte' ? t.valor : t.tipo === 'Resgate' ? -t.valor : 0), 0);
+    const pendentes = allClientTrans.filter(t => t.status === 'Pendente').length;
+
     return {
       kpis: {
         saldoLivre,
@@ -206,6 +221,8 @@ export class PerformanceService {
         lucroPercentual: rentabilidadeTWR,
         totalOperacoes,
         usuariosAtivos,
+        fluxoLiquidoMes,
+        pendentes,
       },
       rendimento: {
         lucroReais: lucroReaisNoPeriodo,
@@ -257,7 +274,7 @@ export class PerformanceService {
     ibovespaReturnsData: MonthlyReturn[],
     clientTransactions: ClientTransaction[],
   ): {
-    chartData: { categories: string[]; series: any[] };
+    chartData: { categories: string[]; series: any[]; seriesReais: any[] };
     tableData: PerformanceYear[];
     cardData: {
       saldoAtual: number;
@@ -270,7 +287,7 @@ export class PerformanceService {
     this.logger.debug(`--- INICIANDO CÁLCULO DE PERFORMANCE (CLIENTE) PARA PERÍODO: ${periodo} ---`);
     
     if (clientTransactions.length === 0) {
-      const emptyChart = { categories: [], series: [] };
+      const emptyChart = { categories: [], series: [], seriesReais: [] };
       const emptyCard = { saldoAtual: 0, rendimentoReais: 0, rentabilidadePercentual: 0, percentualSobreCDI: 0, percentualSobreIbov: 0 };
       return { chartData: emptyChart, tableData: [], cardData: emptyCard };
     }
@@ -302,6 +319,7 @@ export class PerformanceService {
 const clientProfitMap = new Map<string, number>(); // <'YYYY-M', total_lucro>
 const clientFlowMap = new Map<string, number>();   // <'YYYY-M', total_fluxo (Aporte-Resgate)>
 const clientAporteMap = new Map<string, number>(); // <-- ADICIONE ESTA LINHA
+const clientTaxaMap = new Map<string, Array<number | undefined>>(); // <'YYYY-M', taxas dos rendimentos> (Fase 1.5)
 
 clientTransactions.forEach(t => {
     const key = `${t.data.getFullYear()}-${t.data.getMonth()}`;
@@ -309,6 +327,8 @@ clientTransactions.forEach(t => {
     if (t.tipo === 'Rendimento') {
         const currentProfit = clientProfitMap.get(key) || 0;
         clientProfitMap.set(key, currentProfit + t.valor);
+        if (!clientTaxaMap.has(key)) clientTaxaMap.set(key, []);
+        clientTaxaMap.get(key)!.push(t.taxa);
     } else if (t.tipo === 'Aporte') { // <-- MODIFIQUE ESTE BLOCO
         // Adiciona ao fluxo líquido
         const currentFlow = clientFlowMap.get(key) || 0;
@@ -355,6 +375,7 @@ clientTransactions.forEach(t => {
     const {
       relevantMonths,
       clientChartSeries,
+      clientBalanceSeries,
       cdiChartSeries,
       ibovespaChartSeries,
       clientMonthlyReturns, // Mapa <'YYYY-M', rentabilidade_percentual_mes>
@@ -370,6 +391,7 @@ clientTransactions.forEach(t => {
       clientProfitMap, // NOVO
       clientFlowMap,   // NOVO
       clientAporteMap,
+      clientTaxaMap,
       cdiPerformanceMap,
       ibovespaPerformanceMap,
       clientBalance, // Saldo inicial do período
@@ -428,6 +450,8 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
                 { name: 'CDI', data: cdiChartSeries },
                 { name: 'Ibovespa', data: ibovespaChartSeries },
             ],
+            // Mesmo eixo de categorias, em R$ (patrimônio ao fim de cada mês)
+            seriesReais: [{ name: 'Patrimônio', data: clientBalanceSeries }],
         },
         tableData: tableData.reverse(),
         cardData,
@@ -448,6 +472,7 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
   clientProfitMap: Map<string, number>,
   clientFlowMap: Map<string, number>,
   clientAporteMap: Map<string, number>,
+  clientTaxaMap: Map<string, Array<number | undefined>>,
   cdiMap: Map<string, number>,
   ibovMap: Map<string, number>,
   initialBalance: number,
@@ -466,6 +491,8 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
   let totalInvested = initialInvested;
 
   const clientChartSeries = [0];
+  // Patrimônio em R$ ao fim de cada mês (ponto 0 = saldo no início do período)
+  const clientBalanceSeries = [parseFloat(initialBalance.toFixed(2))];
   let cdiFactor = 1;
   const cdiChartSeries = [0];
   let ibovespaFactor = 1;
@@ -483,9 +510,11 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
     const resgates = fluxoLiquido - aportes > 0 ? 0 : -(fluxoLiquido - aportes); // dissecamos fluxo
     const profit = clientProfitMap.get(monthKey) || 0;
 
-    // BASE = saldo anterior + aportes
+    // Rentabilidade do mês (Fase 1.5): produto de (1 + taxa) dos rendimentos do cliente no mês.
+    // Aportes e resgates no meio do mês não alteram o número. Fallback para rendimentos
+    // sem taxa (antes do backfill): lucro / (saldo anterior + aportes).
     const base = previousBalance + aportes;
-    const monthlyReturnPercent = base > 0 ? (profit / base) : 0;
+    const monthlyReturnPercent = monthlyReturnFromRates(clientTaxaMap.get(monthKey) ?? [], { profit, base });
 
     // novo saldo = anterior + aportes + lucro - resgates
     clientBalance = previousBalance + aportes + profit - resgates;
@@ -495,6 +524,7 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
 
     clientFactor *= (1 + monthlyReturnPercent);
     clientChartSeries.push(parseFloat(((clientFactor - 1) * 100).toFixed(2)));
+    clientBalanceSeries.push(parseFloat(clientBalance.toFixed(2)));
 
     const cdiReturn = cdiMap.get(monthKey) ?? 0;
     cdiFactor *= 1 + cdiReturn / 100;
@@ -508,6 +538,7 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
   return {
     relevantMonths,
     clientChartSeries,
+    clientBalanceSeries,
     cdiChartSeries,
     ibovespaChartSeries,
     clientMonthlyReturns,
