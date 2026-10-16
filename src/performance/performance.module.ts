@@ -7,7 +7,6 @@ import { CdiModule } from 'src/cdi/cdi.module';
 import { ClientTransactionsModule } from 'src/client-transactions/client-transactions.module';
 import { FundOperationsModule } from 'src/fund-operations/fund-operations.module';
 import { ClientsModule } from 'src/clients/clients.module';
-import { IbovespaModule } from 'src/ibovespa/ibovespa.module';
 
 @Module({
   imports: [
@@ -17,7 +16,6 @@ import { IbovespaModule } from 'src/ibovespa/ibovespa.module';
     CdiModule,
     FundOperationsModule,
     ClientsModule,
-    IbovespaModule,
   ],
   controllers: [PerformanceController],
   providers: [PerformanceService],

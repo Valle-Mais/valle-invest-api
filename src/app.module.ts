@@ -15,7 +15,6 @@ import { PerformanceModule } from './performance/performance.module';
 import { InstrumentsModule } from './instruments/instruments.module';
 import { CdiModule } from './cdi/cdi.module';
 import { SeederModule } from './seeder/seeder.module';
-import { IbovespaModule } from './ibovespa/ibovespa.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { validateEnv } from './config/env.validation';
@@ -35,7 +34,6 @@ import { validateEnv } from './config/env.validation';
     InstrumentsModule,
     CdiModule,
     SeederModule,
-    IbovespaModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,7 +1,7 @@
 interface PerformanceYear {
   year: number;
   items: {
-    label: 'Fundo' | 'CDI' | 'Ibovespa'; // <-- ADICIONE 'Ibovespa' AQUI
+    label: 'Fundo' | 'CDI';
     monthlyValues: (number | null)[];
     annualTotal: number;
   }[];
@@ -13,11 +13,10 @@ export class DashboardDataDto {
     rendimentoReais: number;
     rentabilidadePercentual: number;
     percentualSobreCDI: number;
-    percentualSobreIbov: number;
   };
   chartData: {
     categories: string[];
-    /** Rentabilidade acumulada em %: Minha Carteira, CDI, Ibovespa */
+    /** Rentabilidade acumulada em %: Minha Carteira e CDI */
     series: any[];
     /** Patrimônio em R$ ao fim de cada mês, mesmas categorias */
     seriesReais: any[];

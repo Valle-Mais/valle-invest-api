@@ -8,14 +8,13 @@ import { FundOperationsService, MonthlyReturn } from 'src/fund-operations/fund-o
 import { CdiService } from 'src/cdi/cdi.service';
 import { ClientTransaction } from 'src/client-transactions/entities/client-transaction.entity';
 import { ClientsService } from 'src/clients/clients.service';
-import { IbovespaService } from 'src/ibovespa/ibovespa.service';
 import { monthlyReturnFromRates } from './monthly-return';
 
 // Interface para a tabela de rentabilidade
 interface PerformanceYear {
   year: number;
   items: {
-    label: 'Fundo' | 'CDI' | 'Ibovespa';
+    label: 'Fundo' | 'CDI';
     monthlyValues: (number | null)[];
     annualTotal: number;
   }[];
@@ -31,7 +30,6 @@ export class PerformanceService {
     private readonly cdiService: CdiService,
     private readonly fundPerformanceService: FundOperationsService,
     private readonly clientsService: ClientsService,
-    private readonly ibovespaService: IbovespaService,
   ) {}
 
   // ====================================================================
@@ -45,12 +43,11 @@ export class PerformanceService {
     this.logger.debug(`Iniciando getAdminDashboardSummary para o período: ${periodo}`);
 
     // 1️⃣ Buscar dados
-    const [allClients, allOperationsResponse, allClientTrans, cdiReturns, ibovespaReturns] = await Promise.all([
+    const [allClients, allOperationsResponse, allClientTrans, cdiReturns] = await Promise.all([
       this.clientsService.findAll(),
       this.fundPerformanceService.findAll({ page: 1, limit: 99999 }),
       this.transactionsService.findAll({}),
       this.cdiService.getMonthlyReturns(),
-      this.ibovespaService.getMonthlyReturns(),
     ]);
 
     const allOperations = allOperationsResponse.data;
@@ -125,9 +122,8 @@ export class PerformanceService {
       tempDate.setMonth(tempDate.getMonth() + 1);
     }
 
-    // 6️⃣ Mapas de benchmarks
+    // 6️⃣ Mapa de benchmark
     const cdiMap = new Map(cdiReturns.map(c => [`${c.year}-${c.month}`, c.returnValue]));
-    const ibovMap = new Map(ibovespaReturns.map(i => [`${i.year}-${i.month}`, i.returnValue]));
 
     // 7️⃣ Reconstruir saldo inicial do período (acumulado antes do startDate)
     let patrimonioInicial = 0;
@@ -143,11 +139,9 @@ export class PerformanceService {
     const categories = ['Início', ...relevantMonths.map(m => `${this.months[m.month]}/${m.year.toString().slice(-2)}`)];
     const fundoSeries: number[] = [0];
     const cdiSeries: number[] = [0];
-    const ibovSeries: number[] = [0];
 
     let fundoFactor = 1; // TWR Fundo
     let cdiFactor = 1;   // TWR CDI
-    let ibovFactor = 1;  // TWR Ibov
 
     relevantMonths.forEach(m => {
       const key = `${m.year}-${m.month}`;
@@ -164,13 +158,10 @@ export class PerformanceService {
       fundoFactor *= (1 + retornoMes);
       const cdiReturn = cdiMap.get(key) ?? 0;
       cdiFactor *= (1 + cdiReturn / 100);
-      const ibovReturn = ibovMap.get(key) ?? 0;
-      ibovFactor *= (1 + ibovReturn / 100);
 
       // 2. Preencher séries do gráfico
       fundoSeries.push(parseFloat(((fundoFactor - 1) * 100).toFixed(2)));
       cdiSeries.push(parseFloat(((cdiFactor - 1) * 100).toFixed(2)));
-      ibovSeries.push(parseFloat(((ibovFactor - 1) * 100).toFixed(2)));
       
       // 3. Atualizar o patrimônio para a próxima iteração
       // (Agora sim, usamos o fluxo líquido total)
@@ -183,7 +174,6 @@ export class PerformanceService {
       series: [
         { name: 'Fundo', data: fundoSeries },
         { name: 'CDI', data: cdiSeries },
-        { name: 'Ibovespa', data: ibovSeries },
       ]
     };
     
@@ -199,12 +189,10 @@ export class PerformanceService {
 }).length;
 
 
-    // Total retornos benchmarks no período
+    // Total retorno do benchmark no período
     const cdiTotalReturnPeriodo = cdiFactor - 1;
-    const ibovTotalReturnPeriodo = ibovFactor - 1;
 
     const percentualSobreCDI = cdiTotalReturnPeriodo ? rentabilidadeTWR / cdiTotalReturnPeriodo : 0;
-    const percentualSobreIbov = ibovTotalReturnPeriodo ? rentabilidadeTWR / ibovTotalReturnPeriodo : 0;
 
     // Fluxo líquido do mês corrente: aportes menos resgates aprovados
     const monthStart = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
@@ -228,7 +216,6 @@ export class PerformanceService {
         lucroReais: lucroReaisNoPeriodo,
         lucroPercentual: rentabilidadeTWR,
         percentualSobreCDI,
-        percentualSobreIbov,
       },
       chartData
     };
@@ -246,11 +233,9 @@ export class PerformanceService {
       clientTransactions,
       cdiReturnsData,
       // fundReturnsData NÃO É MAIS NECESSÁRIO
-      ibovespaReturnsData,
     ] = await Promise.all([
       this.transactionsService.findAllByClientId(clientId),
       this.cdiService.getMonthlyReturns(),
-      this.ibovespaService.getMonthlyReturns(),
     ]);
 
     // O cálculo agora usa apenas as transações do cliente,
@@ -259,7 +244,6 @@ export class PerformanceService {
       periodo,
       // fundReturnsData, // REMOVIDO
       cdiReturnsData,
-      ibovespaReturnsData,
       clientTransactions,
     );
   }
@@ -271,7 +255,6 @@ export class PerformanceService {
     periodo: string,
     // fundReturnsData: MonthlyReturn[], // REMOVIDO
     cdiReturnsData: MonthlyReturn[],
-    ibovespaReturnsData: MonthlyReturn[],
     clientTransactions: ClientTransaction[],
   ): {
     chartData: { categories: string[]; series: any[]; seriesReais: any[] };
@@ -281,14 +264,13 @@ export class PerformanceService {
       rendimentoReais: number;
       rentabilidadePercentual: number;
       percentualSobreCDI: number;
-      percentualSobreIbov: number;
     };
   } {
     this.logger.debug(`--- INICIANDO CÁLCULO DE PERFORMANCE (CLIENTE) PARA PERÍODO: ${periodo} ---`);
     
     if (clientTransactions.length === 0) {
       const emptyChart = { categories: [], series: [], seriesReais: [] };
-      const emptyCard = { saldoAtual: 0, rendimentoReais: 0, rentabilidadePercentual: 0, percentualSobreCDI: 0, percentualSobreIbov: 0 };
+      const emptyCard = { saldoAtual: 0, rendimentoReais: 0, rentabilidadePercentual: 0, percentualSobreCDI: 0 };
       return { chartData: emptyChart, tableData: [], cardData: emptyCard };
     }
 
@@ -345,11 +327,9 @@ clientTransactions.forEach(t => {
     }
 });
 
-    // Mapas de benchmark
+    // Mapa de benchmark
     const cdiPerformanceMap = new Map<string, number>();
     cdiReturnsData.forEach(m => cdiPerformanceMap.set(`${m.year}-${m.month}`, m.returnValue));
-    const ibovespaPerformanceMap = new Map<string, number>();
-    ibovespaReturnsData.forEach(m => ibovespaPerformanceMap.set(`${m.year}-${m.month}`, m.returnValue));
 
     // --- Etapa 3: "Avanço Rápido" - Calcular o Saldo Inicial do Período (CORRIGIDO) ---
     let clientBalance = 0; // Saldo inicial do período
@@ -377,13 +357,11 @@ clientTransactions.forEach(t => {
       clientChartSeries,
       clientBalanceSeries,
       cdiChartSeries,
-      ibovespaChartSeries,
       clientMonthlyReturns, // Mapa <'YYYY-M', rentabilidade_percentual_mes>
       finalClientBalance,
       finalTotalInvested, // Capital líquido final (desde o início)
       clientFactorPeriodo, // Fator de rentabilidade (time-weighted)
       cdiFactorPeriodo,
-      ibovespaFactorPeriodo,
     } = this.simulateMonthlyPortfolio(
       simulationStartDate,
       simulationEndDate,
@@ -393,13 +371,12 @@ clientTransactions.forEach(t => {
       clientAporteMap,
       clientTaxaMap,
       cdiPerformanceMap,
-      ibovespaPerformanceMap,
       clientBalance, // Saldo inicial do período
       totalInvested, // Capital líquido inicial do período
     );
 
     // --- Etapa 5: Montar a estrutura de dados para a TABELA ---
-    const tableData = this.buildPerformanceTable(relevantMonths, clientMonthlyReturns, cdiPerformanceMap, ibovespaPerformanceMap, firstTransactionDate);
+    const tableData = this.buildPerformanceTable(relevantMonths, clientMonthlyReturns, cdiPerformanceMap, firstTransactionDate);
 
     // --- Etapa 6: Montar os dados para os CARDS (LÓGICA CORRIGIDA CONFORME SOLICITAÇÃO) ---
     
@@ -415,7 +392,6 @@ const rendimentoReaisDoPeriodo = finalClientBalance - clientBalance - capitalMov
 
 
 const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
-    const ibovTotalReturnPeriodo = ibovespaFactorPeriodo - 1; //
     
     // --- INÍCIO DA ALTERAÇÃO ---
     
@@ -439,7 +415,6 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
         rentabilidadePercentual: fundoTotalReturnPeriodo, 
         // 4. Compare TWR (Fundo) vs TWR (CDI)
         percentualSobreCDI: calculateOutperformance(fundoTotalReturnPeriodo, cdiTotalReturnPeriodo),
-        percentualSobreIbov: calculateOutperformance(fundoTotalReturnPeriodo, ibovTotalReturnPeriodo),
     };
 
     return {
@@ -448,7 +423,6 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
             series: [
                 { name: 'Minha Carteira', data: clientChartSeries }, // O gráfico continua time-weighted
                 { name: 'CDI', data: cdiChartSeries },
-                { name: 'Ibovespa', data: ibovespaChartSeries },
             ],
             // Mesmo eixo de categorias, em R$ (patrimônio ao fim de cada mês)
             seriesReais: [{ name: 'Patrimônio', data: clientBalanceSeries }],
@@ -474,7 +448,6 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
   clientAporteMap: Map<string, number>,
   clientTaxaMap: Map<string, Array<number | undefined>>,
   cdiMap: Map<string, number>,
-  ibovMap: Map<string, number>,
   initialBalance: number,
   initialInvested: number
 ) {
@@ -495,8 +468,6 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
   const clientBalanceSeries = [parseFloat(initialBalance.toFixed(2))];
   let cdiFactor = 1;
   const cdiChartSeries = [0];
-  let ibovespaFactor = 1;
-  const ibovespaChartSeries = [0];
   let clientFactor = 1;
 
   const clientMonthlyReturns = new Map<string, number>();
@@ -529,10 +500,6 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
     const cdiReturn = cdiMap.get(monthKey) ?? 0;
     cdiFactor *= 1 + cdiReturn / 100;
     cdiChartSeries.push(parseFloat(((cdiFactor - 1) * 100).toFixed(2)));
-
-    const ibovReturn = ibovMap.get(monthKey) ?? 0;
-    ibovespaFactor *= 1 + ibovReturn / 100;
-    ibovespaChartSeries.push(parseFloat(((ibovespaFactor - 1) * 100).toFixed(2)));
   });
 
   return {
@@ -540,13 +507,11 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
     clientChartSeries,
     clientBalanceSeries,
     cdiChartSeries,
-    ibovespaChartSeries,
     clientMonthlyReturns,
     finalClientBalance: clientBalance,
     finalTotalInvested: totalInvested,
     clientFactorPeriodo: clientFactor,
     cdiFactorPeriodo: cdiFactor,
-    ibovespaFactorPeriodo: ibovespaFactor,
   };
 }
 
@@ -558,7 +523,6 @@ private buildPerformanceTable(
   relevantMonths: { year: number; month: number }[],
   clientMonthlyReturns: Map<string, number>,
   cdiPerformanceMap: Map<string, number>,
-  ibovespaPerformanceMap: Map<string, number>,
   startDate: Date, // <<<<<<<<<<<<<< ADICIONADO
 ): PerformanceYear[] {
 
@@ -569,7 +533,6 @@ private buildPerformanceTable(
       const yearData: PerformanceYear = { year, items: [
           { label: 'Fundo', monthlyValues: new Array(12).fill(null), annualTotal: 0 },
           { label: 'CDI', monthlyValues: new Array(12).fill(null), annualTotal: 0 },
-          { label: 'Ibovespa', monthlyValues: new Array(12).fill(null), annualTotal: 0 },
       ]};
 
       for (let month = 0; month < 12; month++) {
@@ -581,13 +544,10 @@ private buildPerformanceTable(
             yearData.items[0].monthlyValues[month] = clientMonthlyReturns.get(key)!;
           }
 
-          // só mostra CDI e Ibov SE mês >= data do primeiro aporte
+          // só mostra CDI SE mês >= data do primeiro aporte
          if (currentMonthDate >= startDate && relevantMonths.some(m => m.year === year && m.month === month)) {
   if (cdiPerformanceMap.has(key)) {
     yearData.items[1].monthlyValues[month] = cdiPerformanceMap.get(key)!;
-  }
-  if (ibovespaPerformanceMap.has(key)) {
-    yearData.items[2].monthlyValues[month] = ibovespaPerformanceMap.get(key)!;
   }
 }
       }
