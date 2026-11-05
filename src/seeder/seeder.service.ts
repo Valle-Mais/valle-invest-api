@@ -182,16 +182,16 @@ private async seedFundOperations() {
       const profitShare = totalFundProfit * participationPercent;
       return {
         'Cliente': client.name,
-        'Valor Investido (R$)': client.totalInvestido.toFixed(2),
+        'Valor Investido (US$)': client.totalInvestido.toFixed(2),
         'Participação (%)': (participationPercent * 100).toFixed(2) + '%',
-        'Lucro Atribuído (R$)': profitShare.toFixed(2),
+        'Lucro Atribuído (US$)': profitShare.toFixed(2),
       };
     });
 
     this.logger.log('\n\n--- RELATÓRIO DE DISTRIBUIÇÃO DE LUCRO (Simulação do Seeder) ---');
     console.table(report);
-    this.logger.log(`Lucro Total do Fundo: R$ ${totalFundProfit.toFixed(2)}`);
-    this.logger.log(`Patrimônio Total de Clientes: R$ ${totalInvestedAllClients.toFixed(2)}`);
+    this.logger.log(`Lucro Total do Fundo: US$ ${totalFundProfit.toFixed(2)}`);
+    this.logger.log(`Patrimônio Total de Clientes: US$ ${totalInvestedAllClients.toFixed(2)}`);
     this.logger.log('------------------------------------------------------------------\n');
   }
 
@@ -388,12 +388,12 @@ async validatePerformanceCalculation() {
 
         simulationLog.push({
             'Mês': `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`,
-            'Saldo Inicial': `R$ ${previousBalance.toFixed(2)}`,
-            'Aportes': `R$ ${aportesMes.toFixed(2)}`,
-            'Resgates': `R$ ${resgatesMes.toFixed(2)}`,
+            'Saldo Inicial': `US$ ${previousBalance.toFixed(2)}`,
+            'Aportes': `US$ ${aportesMes.toFixed(2)}`,
+            'Resgates': `US$ ${resgatesMes.toFixed(2)}`,
             'Rentab. Fundo (%)': `${fundReturnPercent.toFixed(2)}%`,
-            'Lucro do Mês (R$)': `R$ ${profitForMonth.toFixed(2)}`,
-            'Saldo Final': `R$ ${clientBalance.toFixed(2)}`,
+            'Lucro do Mês (US$)': `US$ ${profitForMonth.toFixed(2)}`,
+            'Saldo Final': `US$ ${clientBalance.toFixed(2)}`,
         });
 
         currentDate.setMonth(currentDate.getMonth() + 1);
@@ -409,15 +409,15 @@ async validatePerformanceCalculation() {
 
     const saldoFinalCalculado = totalAportes - totalResgates + totalRendimentos;
     
-    this.logger.log(`Total Aportado (Simulação):   R$ ${totalAportes.toFixed(2)}`);
-    this.logger.log(`Total Resgatado (Simulação):  R$ ${totalResgates.toFixed(2)}`);
-    this.logger.log(`Total Rendimentos (Simulação):R$ ${totalRendimentos.toFixed(2)}`);
+    this.logger.log(`Total Aportado (Simulação):   US$ ${totalAportes.toFixed(2)}`);
+    this.logger.log(`Total Resgatado (Simulação):  US$ ${totalResgates.toFixed(2)}`);
+    this.logger.log(`Total Rendimentos (Simulação):US$ ${totalRendimentos.toFixed(2)}`);
     this.logger.log('--------------------------------------------------');
-    this.logger.log(`SALDO FINAL CALCULADO (Aportes - Resgates + Rendimentos): R$ ${saldoFinalCalculado.toFixed(2)}`);
-    this.logger.log(`SALDO ATUAL (Retornado pela API):                       R$ ${officialSaldoAtual.toFixed(2)}`);
+    this.logger.log(`SALDO FINAL CALCULADO (Aportes - Resgates + Rendimentos): US$ ${saldoFinalCalculado.toFixed(2)}`);
+    this.logger.log(`SALDO ATUAL (Retornado pela API):                       US$ ${officialSaldoAtual.toFixed(2)}`);
     this.logger.log('\n---');
-    this.logger.log(`RENDIMENTO R$ (Simulação):    R$ ${totalRendimentos.toFixed(2)}`);
-    this.logger.log(`RENDIMENTO R$ (Retornado pela API): R$ ${officialRendimentoReais.toFixed(2)}`);
+    this.logger.log(`RENDIMENTO US$ (Simulação):    US$ ${totalRendimentos.toFixed(2)}`);
+    this.logger.log(`RENDIMENTO US$ (Retornado pela API): US$ ${officialRendimentoReais.toFixed(2)}`);
     
     const diffSaldo = Math.abs(saldoFinalCalculado - officialSaldoAtual);
     const diffRendimento = Math.abs(totalRendimentos - officialRendimentoReais);
@@ -426,8 +426,8 @@ async validatePerformanceCalculation() {
       this.logger.log('\n✅ VALIDAÇÃO BEM-SUCEDIDA: Os saldos e rendimentos são consistentes!');
     } else {
       this.logger.error(`\n❌ VALIDAÇÃO FALHOU:`);
-      if (diffSaldo >= 0.01) this.logger.error(`  - Diferença no SALDO: R$ ${diffSaldo.toFixed(2)}`);
-      if (diffRendimento >= 0.01) this.logger.error(`  - Diferença no RENDIMENTO: R$ ${diffRendimento.toFixed(2)}`);
+      if (diffSaldo >= 0.01) this.logger.error(`  - Diferença no SALDO: US$ ${diffSaldo.toFixed(2)}`);
+      if (diffRendimento >= 0.01) this.logger.error(`  - Diferença no RENDIMENTO: US$ ${diffRendimento.toFixed(2)}`);
     }
   }
 

@@ -18,7 +18,7 @@ export class DashboardDataDto {
     categories: string[];
     /** Rentabilidade acumulada em %: Minha Carteira e CDI */
     series: any[];
-    /** Patrimônio em R$ ao fim de cada mês, mesmas categorias */
+    /** Patrimônio em US$ ao fim de cada mês, mesmas categorias */
     seriesReais: any[];
   };
   tableData: PerformanceYear[];

@@ -348,8 +348,8 @@ clientTransactions.forEach(t => {
         
         preDate.setMonth(preDate.getMonth() + 1);
     }
-    this.logger.debug(`Saldo inicial para o período '${periodo}' calculado: R$ ${clientBalance.toFixed(2)}`);
-    this.logger.debug(`Capital líquido inicial para o período: R$ ${totalInvested.toFixed(2)}`);
+    this.logger.debug(`Saldo inicial para o período '${periodo}' calculado: US$ ${clientBalance.toFixed(2)}`);
+    this.logger.debug(`Capital líquido inicial para o período: US$ ${totalInvested.toFixed(2)}`);
 
     // --- Etapa 4: Simulação Principal (Dentro do Período Selecionado) (CORRIGIDO) ---
     const {
@@ -424,7 +424,7 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
                 { name: 'Minha Carteira', data: clientChartSeries }, // O gráfico continua time-weighted
                 { name: 'CDI', data: cdiChartSeries },
             ],
-            // Mesmo eixo de categorias, em R$ (patrimônio ao fim de cada mês)
+            // Mesmo eixo de categorias, em US$ (patrimônio ao fim de cada mês)
             seriesReais: [{ name: 'Patrimônio', data: clientBalanceSeries }],
         },
         tableData: tableData.reverse(),
@@ -464,7 +464,7 @@ const cdiTotalReturnPeriodo = cdiFactorPeriodo - 1; //
   let totalInvested = initialInvested;
 
   const clientChartSeries = [0];
-  // Patrimônio em R$ ao fim de cada mês (ponto 0 = saldo no início do período)
+  // Patrimônio em US$ ao fim de cada mês (ponto 0 = saldo no início do período)
   const clientBalanceSeries = [parseFloat(initialBalance.toFixed(2))];
   let cdiFactor = 1;
   const cdiChartSeries = [0];
